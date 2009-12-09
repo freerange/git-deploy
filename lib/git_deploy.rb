@@ -10,6 +10,7 @@ Capistrano::Configuration.instance(true).load do
   _cset(:application) { abort "Please specify the name of your application, set :application, 'foo'" }
   _cset :remote, "origin"
   _cset :branch, "master"
+  _cset :environment, "production"
 
   _cset(:multiple_hosts) { roles.values.map{ |v| v.servers}.flatten.uniq.size > 1 }
   _cset(:repository)  { `#{ source.local.scm('config', "remote.#{remote}.url") }`.chomp }
@@ -21,6 +22,7 @@ Capistrano::Configuration.instance(true).load do
   _cset(:current_branch) { File.read('.git/HEAD').chomp.split(' refs/heads/').last }
   _cset(:revision) { branch }
   _cset(:source)   { Capistrano::Deploy::SCM::Git.new(self) }
+
 
   # If :run_method is :sudo (or :use_sudo is true), this executes the given command
   # via +sudo+. Otherwise is uses +run+. If :as is given as a key, it will be
@@ -91,9 +93,12 @@ Capistrano::Configuration.instance(true).load do
       dir = File.dirname(__FILE__) + '/hooks'
       remote_dir = "#{deploy_to}/.git/hooks"
 
-      top.upload "#{dir}/post-receive.rb", "#{remote_dir}/post-receive"
       top.upload "#{dir}/post-reset.rb", "#{remote_dir}/post-reset"
+      top.upload "#{dir}/post-receive.rb", "#{remote_dir}/post-receive"
       run "chmod +x #{remote_dir}/post-receive #{remote_dir}/post-reset"
+
+      # Rewrite the post-reset hook to use the configured environment
+      run "sed -i'' 's/^environment_placeholder$/RAILS_ENV = \"#{environment}\"/' #{remote_dir}/post-reset"
     end
 
     desc "Restarts your Passenger application."

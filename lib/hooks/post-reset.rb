@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-RAILS_ENV = 'production'
+environment_placeholder
 oldrev, newrev = ARGV
 $stdout.sync = true
 
