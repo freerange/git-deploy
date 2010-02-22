@@ -119,8 +119,6 @@ run %(git clean -d -f vendor), "Cleaning unversioned files from vendor"
 
 # determine if app restart is needed
 if cached_assets_cleared or new_migrations or changed_files.any_in_dir?(%w(app config lib public vendor))
-  require 'fileutils'
   # tell Passenger to restart this app
-  FileUtils.touch 'tmp/restart.txt'
-  puts "restarting Passenger app"
+  run %(touch tmp/restart.txt), "restarting Passenger app"
 end
