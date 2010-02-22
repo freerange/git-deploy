@@ -3,6 +3,17 @@ RAILS_ENV = 'production'
 oldrev, newrev = ARGV
 $stdout.sync = true
 
+def run(cmd, log_or_message=false, log=false)
+  if log_or_message.is_a?(String)
+    puts log_or_message
+  end
+  if log_or_message == false || log == false
+    system(cmd)
+  else
+    `#{cmd}`
+  end
+end
+
 def parse_configuration(file)
   config = {}
   current = nil
@@ -62,18 +73,18 @@ end
 
 unless asset_dirs.empty?
   # clear cached assets (unversioned/ignored files)
-  system %(git clean -x -f -- #{asset_dirs.join(' ')})
+  run %(git clean -x -f -- #{asset_dirs.join(' ')}), "Clearing cached assets"
   cached_assets_cleared = true
 end
 
 # run migrations when new ones added
 if new_migrations = added_files.any_in_dir?('db/migrate')
-  system %(umask 002 && rake db:migrate RAILS_ENV=#{RAILS_ENV})
+  run %(umask 002 && rake db:migrate RAILS_ENV=#{RAILS_ENV}), "Running migrations"
 end
 
 if modified_files.include?('.gitmodules')
   # initialize new submodules
-  system %(umask 002 && git submodule init)
+  run %(umask 002 && git submodule init), "Initializing submodules"
   # sync submodule remote urls in case of changes
   config = parse_configuration('.gitmodules')
 
@@ -87,7 +98,7 @@ if modified_files.include?('.gitmodules')
         new_url = submodule['url']
         unless old_url == new_url
           puts "changing #{path.inspect} URL:\n  #{old_url.inspect} → #{new_url.inspect}"
-          `git config -f "#{subconf}" remote.origin.url "#{new_url}"`
+          run %(git config -f "#{subconf}" remote.origin.url "#{new_url}"), "Updating submodules", true
         end
       else
         $stderr.puts "a submodule in #{path.inspect} doesn't exist"
@@ -96,15 +107,15 @@ if modified_files.include?('.gitmodules')
   end
 end
 # update existing submodules
-system %(umask 002 && git submodule update)
+run %(umask 002 && git submodule update), "Updating existing submodules (if any exist)"
 
 if changed_files.include?('Gemfile')
   # update bundled gems if manifest file has changed
-  system %(umask 002 && bundle lock && bundle install)
+  run %(umask 002 && bundle lock && bundle install), "Bundling gems"
 end
 
 # clean unversioned files from vendor (e.g. old submodules)
-system %(git clean -d -f vendor)
+run %(git clean -d -f vendor), "Cleaning unversioned files from vendor"
 
 # determine if app restart is needed
 if cached_assets_cleared or new_migrations or changed_files.any_in_dir?(%w(app config lib public vendor))
